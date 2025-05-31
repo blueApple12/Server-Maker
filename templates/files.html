@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File Manager</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+  <!-- CSRF token -->
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body>
+  <div class="container">
+    <h1>File Manager: /{{ current_rel }}</h1>
+    <p>
+      <a href="{{ url_for('index') }}" class="btn btn-primary">← Back to Control Panel</a>
+      {% if current_rel %}
+        <a href="{{ url_for('files', path=current_rel.rsplit('/', 1)[0]) }}" class="btn btn-secondary">↑ Up One Level</a>
+      {% endif %}
+    </p>
+
+    <!-- Directory listing -->
+    <table class="file-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+          <tr>
+            <td>
+              {% if entry.is_dir %}
+                <a href="{{ url_for('files', path=entry.rel_path) }}">{{ entry.name }}/</a>
+              {% else %}
+                <!-- File name now links to the editor instead of download -->
+                <a href="{{ url_for('edit_file') }}?path={{ entry.rel_path }}">{{ entry.name }}</a>
+              {% endif %}
+            </td>
+            <td>{{ "Folder" if entry.is_dir else "File" }}</td>
+            <td>
+              {% if entry.is_dir %}
+                <!-- Only delete button for empty folders (delete_file will check emptiness) -->
+                <form action="{{ url_for('delete_file') }}" method="post" style="display:inline;">
+                  <input type="hidden" name="path" value="{{ entry.rel_path }}" />
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <button type="submit" class="btn btn-sm btn-danger"
+                    onclick="return confirm('Delete folder {{ entry.name }}/ ?')">
+                    Delete
+                  </button>
+                </form>
+              {% else %}
+                <!-- Edit button for files -->
+                <a href="{{ url_for('edit_file') }}?path={{ entry.rel_path }}" class="btn btn-sm btn-info">Edit</a>
+                <form action="{{ url_for('delete_file') }}" method="post" style="display:inline;">
+                  <input type="hidden" name="path" value="{{ entry.rel_path }}" />
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <button type="submit" class="btn btn-sm btn-danger"
+                    onclick="return confirm('Delete file {{ entry.name }}?')">
+                    Delete
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Upload Form -->
+    <h3>Upload a New File</h3>
+    <form action="{{ url_for('files') }}?path={{ current_rel }}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div class="form-group">
+        <label for="file">Choose a file to upload:</label><br>
+        <input type="file" name="file" id="file" required>
+      </div>
+      <input type="hidden" name="path" value="{{ current_rel }}" />
+      <button type="submit" class="btn btn-primary">Upload</button>
+    </form>
+  </div>
+</body>
+</html>

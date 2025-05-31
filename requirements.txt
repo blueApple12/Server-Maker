@@ -1,0 +1,7 @@
+Flask
+Flask-WTF
+python-dotenv
+requests
+gunicorn
+Werkzeug
+psutil

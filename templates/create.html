@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Minecraft Server</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <h1>Create Minecraft Server</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes">
+          {% for category, msg in messages %}
+            <li class="flash-{{ category }}">{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post">
+      {{ form.hidden_tag() }}
+
+      <div class="form-group">
+        {{ form.version.label }}
+        {{ form.version(class="form-control", placeholder="e.g. 1.21.5") }}
+        {% for error in form.version.errors %}
+          <span class="error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        <!-- Label without "(Max ...)" -->
+        <label for="ram">RAM (GB)</label>
+        {{ form.ram(
+             id="ram",
+             class="form-control",
+             type="number",
+             min="1",
+             max=free_ram,
+             placeholder=(free_ram) ~ "GB Available, Recommended to use less than available amount"
+           ) }}
+        {% for error in form.ram.errors %}
+          <span class="error">{{ error }}</span>
+        {% endfor %}
+      </div>
+
+
+      <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+    </form>
+  </div>
+</body>
+</html>

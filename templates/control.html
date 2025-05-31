@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minecraft Server Control Panel</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+  <!-- CSRF token for AJAX -->
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body>
+  <div class="container">
+    <h1>Minecraft Server Control Panel</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes">
+          {% for category, msg in messages %}
+            <li class="flash-{{ category }}">{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- 3‐state server badge -->
+    <div id="serverStatus" aria-live="polite"></div>
+    <div id="playitStatus"></div>
+
+    <!-- Control Buttons -->
+    <div class="button-group">
+      <button id="btnStart"  class="btn btn-success">Start Server</button>
+      <button id="btnStop"   class="btn btn-warning">Stop Server</button>
+      <button id="btnDelete" class="btn btn-danger">Delete Server</button>
+      <a href="{{ url_for('files') }}" class="btn btn-secondary">Browse Files</a>
+    </div>
+
+    <!-- Send Command -->
+    <div class="command-form">
+      <form id="cmdForm">
+        {{ cmd_form.hidden_tag() }}
+        {{ cmd_form.cmd(id="cmd", placeholder="Enter command...", class="form-control") }}
+        {% for error in cmd_form.cmd.errors %}
+          <span class="error">{{ error }}</span>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+    </div>
+
+    <!-- Live Logs -->
+    <h3>Console:</h3>
+    <pre id="logDisplay">Loading logs...</pre>
+  </div>
+
+  <script>
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // Helper: POST with CSRF header
+    async function postWithCSRF(url) {
+      return fetch(url, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": csrfToken
+        }
+      });
+    }
+
+    // Poll /status every 2 seconds
+    async function updateStatus() {
+      try {
+        const r = await fetch("/status");
+        const data = await r.json();
+
+        // 1) Logs
+        document.getElementById("logDisplay").textContent = data.logs;
+
+        // 2) 3‐state badge
+        let statusHTML = "";
+        if (data.state === "offline") {
+          statusHTML = "<div class='status-offline'>🔴 Server is offline</div>";
+        } else if (data.state === "booting") {
+          statusHTML = "<div class='status-booting'>🟡 Server is booting...</div>";
+        } else if (data.state === "online") {
+          statusHTML = "<div class='status-online'>🟢 Server is online</div>";
+        }
+        document.getElementById("serverStatus").innerHTML = statusHTML;
+
+        // 3) Playit status
+        if (data.tunnel_up && data.joinmc_link) {
+          document.getElementById("playitStatus").innerHTML = `
+            <div class='status-online'>
+              🌍 Public at: 
+              <input type="text"
+                     readonly
+                     value="${data.joinmc_link}"
+                     onclick="this.select()"
+                     class="link-input" />
+            </div>`;
+        } else if (!data.tunnel_up && data.claim_link) {
+          document.getElementById("playitStatus").innerHTML = `
+            <div class='status-offline'>
+              🌐 Not public yet.<br>
+              👉 <a href="${data.claim_link}" target="_blank">${data.claim_link}</a><br>
+              🛠 Enable port forwarding at <a href="https://playit.gg" target="_blank">playit.gg</a>.
+            </div>`;
+        } else {
+          document.getElementById("playitStatus").innerHTML = "";
+        }
+
+      } catch (err) {
+        document.getElementById("logDisplay").textContent = "Error fetching status.";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      updateStatus();
+      setInterval(updateStatus, 2000);
+    });
+
+    // Control button events
+    document.getElementById("btnStart").addEventListener("click", async () => {
+      try {
+        await postWithCSRF("/start");
+        await updateStatus();
+      } catch {
+        alert("Failed to start server.");
+      }
+    });
+    document.getElementById("btnStop").addEventListener("click", async () => {
+      try {
+        await postWithCSRF("/stop");
+        await updateStatus();
+      } catch {
+        alert("Failed to stop server.");
+      }
+    });
+    document.getElementById("btnDelete").addEventListener("click", async () => {
+      if (!confirm("Delete the server? This is permanent.")) return;
+      try {
+        const resp = await postWithCSRF("/delete");
+        const result = await resp.json();
+        if (result.deleted) {
+          window.location.href = "/";
+        } else {
+          alert("Failed to delete server.");
+        }
+      } catch {
+        alert("Failed to delete server.");
+      }
+    });
+
+    // Send command form
+    document.getElementById("cmdForm").addEventListener("submit", async (evt) => {
+      evt.preventDefault();
+      const formData = new FormData(evt.target);
+      try {
+        await fetch("/command", {
+          method: "POST",
+          headers: { "X-CSRFToken": csrfToken },
+          body: formData
+        });
+        document.getElementById("cmd").value = "";
+        await updateStatus();
+      } catch {
+        alert("Failed to send command.");
+      }
+    });
+  </script>
+</body>
+</html>

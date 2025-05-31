@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit File: {{ rel_file }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <h1>Editing: /{{ rel_file }}</h1>
+    <p>
+      <a href="{{ url_for('files', path=rel_file.rsplit('/', 1)[0]) }}" class="btn btn-secondary">← Back to Files</a>
+    </p>
+    <form method="post">
+      {{ form.hidden_tag() }}
+      <div class="form-group">
+        {{ form.content(class="form-control", rows=25) }}
+      </div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </div>
+</body>
+</html>
